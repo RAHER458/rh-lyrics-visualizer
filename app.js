@@ -381,12 +381,13 @@
   }
 
   function play() {
-    try { BackgroundEngine.init(); } catch (error) { $('dErr').textContent = String(error.message || error); }
-    try { if (state.audioCtx && state.audioCtx.state === 'suspended') state.audioCtx.resume(); } catch { /* ignore */ }
+    // Сначала запускаем существующий <audio>. WebAudio-граф подключаем только
+    // после старта, иначе на части WebKit-сборок play() может зависнуть.
     audio.play().then(() => {
+      try { BackgroundEngine.init(); } catch (error) { $('dErr').textContent = String(error.message || error); }
+      try { if (state.audioCtx && state.audioCtx.state === 'suspended') state.audioCtx.resume(); } catch { /* ignore */ }
       if (!state.raf) state.raf = requestAnimationFrame(tick);
     }).catch((error) => setState(`Ошибка воспроизведения: ${error.message}`, 'error'));
-    if (!state.raf) state.raf = requestAnimationFrame(tick);
   }
 
   function pause() {
