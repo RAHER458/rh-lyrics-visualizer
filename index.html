@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#07080f">
+<title>RH Lyrics Visualizer · experimental</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<canvas id="bgCanvas" aria-hidden="true"></canvas>
+<div class="blur-veil" aria-hidden="true"></div>
+
+<main class="stage">
+  <header class="top">
+    <span class="brand">RH<span class="brand-sep">·</span>LYRICS</span>
+    <button class="ghost" id="diagToggle" type="button" aria-pressed="false">Диагностика</button>
+  </header>
+
+  <section class="visual" id="visual" aria-live="polite">
+    <div class="line-current" id="currentLine"></div>
+    <div class="line-next" id="nextLine"></div>
+    <div class="visual-state" id="visualState">Загрузите трек и текст</div>
+  </section>
+
+  <section class="lyrics-panel">
+    <details class="panel" id="lyricsPanel" open>
+      <summary>Текст и анализ</summary>
+      <div class="panel-body">
+        <label class="field">Название трека<input id="trackTitle" type="text" placeholder="Например: Земфира — Хочешь?"></label>
+        <div class="row">
+          <label class="field">Исполнитель<input id="trackArtist" type="text" placeholder="Исполнитель"></label>
+          <label class="field">Длительность, сек<input id="trackDuration" type="number" min="1" step="1" placeholder="авто"></label>
+        </div>
+        <div class="row">
+          <label class="file-btn">Аудиофайл<input id="audioFile" type="file" accept="audio/*"></label>
+          <label class="file-btn">Обложка (необязательно)<input id="coverFile" type="file" accept="image/*"></label>
+          <button class="btn" id="loadUrlBtn" type="button">Загрузить по ссылке</button>
+        </div>
+        <input id="audioUrl" type="url" placeholder="https://.../track.mp3 (CORS должен разрешать запрос)">
+        <textarea id="lyricsText" rows="6" placeholder="Вставьте текст песни. Поддерживается обычный текст и LRC:
+[00:12.30]Привет, как дела
+[00:15.00]<00:15.00>Привет <00:15.40>как <00:15.80>дела"></textarea>
+        <div class="row wrap">
+          <button class="btn primary" id="analyzeBtn" type="button">Анализировать и синхронизировать</button>
+          <button class="btn" id="fetchLyricsBtn" type="button">Найти текст в LRCLIB</button>
+          <button class="btn" id="reanalyzeBtn" type="button">Повторить анализ</button>
+          <label class="toggle"><input id="strictVad" type="checkbox" checked> Не показывать синхронизацию без вокала</label>
+        </div>
+        <p class="hint" id="analysisHint">Анализ выполняется в браузере: громкость, спектр, onsets, BPM и вокальные участки. Тайминги слов — эвристическое выравнивание по фактическому вокалу, не «ровная сетка».</p>
+      </div>
+    </details>
+
+    <aside class="panel diag" id="diagPanel" hidden>
+      <h2>Диагностика</h2>
+      <div class="diag-grid">
+        <span>Позиция</span><b id="dPos">0.00</b>
+        <span>Активное слово</span><b id="dWord">—</b>
+        <span>Строка</span><b id="dLine">—</b>
+        <span>BPM</span><b id="dBpm">—</b>
+        <span>Вокальные участки</span><b id="dVad">—</b>
+        <span>Слов размечено</span><b id="dWords">—</b>
+        <span>Уверенность</span><b id="dConf">—</b>
+        <span>Метод</span><b id="dMethod">—</b>
+        <span>Ошибки</span><b id="dErr">—</b>
+      </div>
+      <div class="diag-sub">
+        <span>Спектр</span>
+        <div class="meter"><i id="dBass"></i></div>
+        <span>Громкость</span>
+        <div class="meter"><i id="dRms"></i></div>
+      </div>
+    </aside>
+
+    <details class="panel" id="manualPanel">
+      <summary>Ручные таймкоды</summary>
+      <div class="panel-body">
+        <p class="hint">Если автосинхронизация неточная, вставьте LRC с пословными метками — он имеет приоритет над анализом.</p>
+        <textarea id="manualLrc" rows="5" placeholder="[00:12.30]<00:12.30>Привет <00:12.70>как <00:13.10>дела"></textarea>
+        <button class="btn" id="applyManualBtn" type="button">Применить таймкоды</button>
+      </div>
+    </details>
+  </section>
+
+  <footer class="player">
+    <img id="cover" alt="" decoding="async">
+    <div class="player-meta">
+      <b id="pTitle">Ничего не выбрано</b>
+      <span id="pArtist">—</span>
+    </div>
+    <button class="ctrl" id="playBtn" type="button" aria-label="Play"><svg viewBox="0 0 24 24"><path d="M8 5.2c0-1 1.1-1.6 2-1.1l9.4 6.3a1.3 1.3 0 0 1 0 2.2L10 19c-.9.5-2-.1-2-1.1V5.2Z"/></svg></button>
+    <button class="ctrl" id="backBtn" type="button" aria-label="−10 секунд">−10</button>
+    <button class="ctrl" id="fwdBtn" type="button" aria-label="+10 секунд">+10</button>
+    <div class="progress"><input id="seek" type="range" min="0" max="1000" value="0" aria-label="Прогресс"><span id="times">0:00 / 0:00</span></div>
+    <input id="volume" type="range" min="0" max="100" value="100" aria-label="Громкость">
+    <label class="toggle small"><input id="repeat" type="checkbox"> Повтор</label>
+  </footer>
+</main>
+
+<audio id="audio" crossorigin="anonymous" preload="metadata"></audio>
+<script src="./app.js"></script>
+</body>
+</html>
