@@ -381,9 +381,11 @@
   }
 
   function play() {
-    BackgroundEngine.init();
-    if (state.audioCtx && state.audioCtx.state === 'suspended') state.audioCtx.resume();
-    audio.play().catch((error) => setState(`Ошибка воспроизведения: ${error.message}`, 'error'));
+    try { BackgroundEngine.init(); } catch (error) { $('dErr').textContent = String(error.message || error); }
+    try { if (state.audioCtx && state.audioCtx.state === 'suspended') state.audioCtx.resume(); } catch { /* ignore */ }
+    audio.play().then(() => {
+      if (!state.raf) state.raf = requestAnimationFrame(tick);
+    }).catch((error) => setState(`Ошибка воспроизведения: ${error.message}`, 'error'));
     if (!state.raf) state.raf = requestAnimationFrame(tick);
   }
 
